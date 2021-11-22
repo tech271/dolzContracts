@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.7;
 
-import "./ITotemToken.sol";
+import "./IDolzToken.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -15,13 +15,13 @@ struct BridgeUpdate {
 /**
  * @notice ERC20 token smart contract with a mechanism for authorizing a bridge to mint and burn.
  */
-contract TotemToken is ITotemToken, ERC20, Ownable {
+contract DolzToken is IDolzToken, ERC20, Ownable {
     address private bridge;
     // Latest update launched, executed or not
     BridgeUpdate private bridgeUpdate;
 
     modifier onlyBridge() {
-        require(msg.sender == bridge, "TotemToken: access denied");
+        require(msg.sender == bridge, "DolzToken: access denied");
         _;
     }
 
@@ -68,9 +68,9 @@ contract TotemToken is ITotemToken, ERC20, Ownable {
      */
     function launchBridgeUpdate(address newBridge) external onlyOwner {
         // Check if there already is an update waiting to be executed
-        require(!bridgeUpdate.hasToBeExecuted, "TotemToken: current update has to be executed");
+        require(!bridgeUpdate.hasToBeExecuted, "DolzToken: current update has to be executed");
         // Make sure the new address is a contract and not an EOA
-        require(isContract(newBridge), "TotemToken: address provided is not a contract");
+        require(isContract(newBridge), "DolzToken: address provided is not a contract");
 
         uint256 endGracePeriod = block.timestamp + 604800; // 604800 = 7 days
 
@@ -87,10 +87,10 @@ contract TotemToken is ITotemToken, ERC20, Ownable {
         // Check that grace period has passed
         require(
             bridgeUpdate.endGracePeriod <= block.timestamp,
-            "TotemToken: grace period has not finished"
+            "DolzToken: grace period has not finished"
         );
         // Check that update have not already been executed
-        require(bridgeUpdate.hasToBeExecuted, "TotemToken: update already executed");
+        require(bridgeUpdate.hasToBeExecuted, "DolzToken: update already executed");
 
         bridgeUpdate.hasToBeExecuted = false;
         bridge = bridgeUpdate.newBridge;

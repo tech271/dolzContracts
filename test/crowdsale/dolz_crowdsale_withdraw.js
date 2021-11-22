@@ -1,5 +1,5 @@
-const TotemCrowdsale = artifacts.require('TotemCrowdsale');
-const TotemToken = artifacts.require('TotemToken');
+const DolzCrowdsale = artifacts.require('DolzCrowdsale');
+const DolzToken = artifacts.require('DolzToken');
 const LambdaToken = artifacts.require('LambdaToken');
 
 const {
@@ -20,7 +20,7 @@ const addWeeks = (timestamp, nbWeeks) => {
   return timestamp + time.duration.weeks(nbWeeks).toNumber();
 };
 
-contract('Totem Crowdsale Withdrawal', (accounts) => {
+contract('Dolz Crowdsale Withdrawal', (accounts) => {
   let crowdsale;
   let token;
   let usdc;
@@ -53,7 +53,7 @@ contract('Totem Crowdsale Withdrawal', (accounts) => {
 
   before(async () => {
     usdc = await deployBasicToken('USDC', user1);
-    token = await TotemToken.new('Test Token', 'TST', tokenTotalSupply, {
+    token = await DolzToken.new('Test Token', 'TST', tokenTotalSupply, {
       from: owner,
     });
 
@@ -65,7 +65,7 @@ contract('Totem Crowdsale Withdrawal', (accounts) => {
 
     const authorizedTokens = [usdc.address];
 
-    crowdsale = await TotemCrowdsale.new(token.address, {
+    crowdsale = await DolzCrowdsale.new(token.address, {
       from: owner,
     });
     await crowdsale.setWallet(wallet);

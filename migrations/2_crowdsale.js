@@ -1,7 +1,7 @@
 const { time } = require('@openzeppelin/test-helpers');
 
-const TotemToken = artifacts.require('TotemToken');
-const TotemCrowdsale = artifacts.require('TotemCrowdsale');
+const DolzToken = artifacts.require('DolzToken');
+const DolzCrowdsale = artifacts.require('DolzCrowdsale');
 const LambdaToken = artifacts.require('LambdaToken');
 
 module.exports = async (deployer, network, accounts) => {
@@ -46,9 +46,9 @@ module.exports = async (deployer, network, accounts) => {
     stableCoins.push(testUsdc.address);
   }
 
-  const token = await TotemToken.deployed();
+  const token = await DolzToken.deployed();
 
-  const crowdsale = await deployer.deploy(TotemCrowdsale, token.address, {
+  const crowdsale = await deployer.deploy(DolzCrowdsale, token.address, {
     from: accounts[0],
   });
 

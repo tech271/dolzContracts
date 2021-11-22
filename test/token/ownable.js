@@ -6,13 +6,13 @@ const {
 } = require('@openzeppelin/test-helpers');
 const { ZERO_ADDRESS } = constants;
 
-const TotemToken = artifacts.require('TotemToken');
+const DolzToken = artifacts.require('DolzToken');
 
-contract('Ownable TotemToken', function (accounts) {
+contract('Ownable DolzToken', function (accounts) {
   const [owner, other] = accounts;
 
   beforeEach(async function () {
-    this.ownable = await TotemToken.new('Test Token', 'TST', '1', {
+    this.ownable = await DolzToken.new('Test Token', 'TST', '1', {
       from: owner,
     });
   });

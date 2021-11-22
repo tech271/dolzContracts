@@ -9,7 +9,7 @@ const { ZERO_ADDRESS } = constants;
 
 const { shouldBehaveLikeERC20 } = require('./erc20_utils');
 
-const TotemToken = artifacts.require('TotemToken');
+const DolzToken = artifacts.require('DolzToken');
 
 contract('ERC20', function (accounts) {
   const [initialHolder, recipient, anotherAccount] = accounts;
@@ -19,7 +19,7 @@ contract('ERC20', function (accounts) {
   const initialSupply = new BN('1000000000000000000000000', 10); // 1 millions tokens
 
   beforeEach(async function () {
-    this.token = await TotemToken.new(name, symbol, initialSupply);
+    this.token = await DolzToken.new(name, symbol, initialSupply);
   });
 
   it('has a name', async function () {

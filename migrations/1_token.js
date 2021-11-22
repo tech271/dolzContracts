@@ -1,11 +1,11 @@
-const TotemToken = artifacts.require('TotemToken');
+const DolzToken = artifacts.require('DolzToken');
 
 module.exports = (deployer, network, accounts) => {
   if (network === 'test') return;
 
-  const initialSupply = web3.utils.toWei('1000000', 'ether'); // 1 millions tokens
+  const initialSupply = web3.utils.toWei('1000000000', 'ether'); // 1 billion tokens
 
-  deployer.deploy(TotemToken, 'Totem', 'TOT', initialSupply, {
+  deployer.deploy(DolzToken, 'Dolz', 'DOLZ', initialSupply, {
     from: accounts[0],
   });
 };

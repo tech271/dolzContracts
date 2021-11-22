@@ -4,7 +4,7 @@ pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-interface ITotemToken is IERC20 {
+interface IDolzToken is IERC20 {
     function mintFromBridge(address account, uint256 amount) external;
 
     function burnFromBridge(address account, uint256 amount) external;

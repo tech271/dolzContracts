@@ -6,13 +6,13 @@ const {
 } = require('@openzeppelin/test-helpers');
 const { ZERO_ADDRESS } = constants;
 
-const TotemCrowdsale = artifacts.require('TotemCrowdsale');
+const DolzCrowdsale = artifacts.require('DolzCrowdsale');
 
-contract('Ownable TotemCrowdsale', function (accounts) {
+contract('Ownable DolzCrowdsale', function (accounts) {
   const [owner, other] = accounts;
 
   beforeEach(async function () {
-    this.ownable = await TotemCrowdsale.new(ZERO_ADDRESS, {
+    this.ownable = await DolzCrowdsale.new(ZERO_ADDRESS, {
       from: owner,
     });
   });

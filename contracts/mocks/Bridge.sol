@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../ITotemToken.sol";
+import "../IDolzToken.sol";
 
 contract Bridge {
-    ITotemToken immutable totemToken;
+    IDolzToken immutable DolzToken;
 
-    constructor(ITotemToken _totemToken) {
-        totemToken = _totemToken;
+    constructor(IDolzToken _DolzToken) {
+        DolzToken = _DolzToken;
     }
 
     function deposit(address account, uint256 amount) external {
-        totemToken.mintFromBridge(account, amount);
+        DolzToken.mintFromBridge(account, amount);
     }
 
     function withdraw(address account, uint256 amount) external {
-        totemToken.burnFromBridge(account, amount);
+        DolzToken.burnFromBridge(account, amount);
     }
 }

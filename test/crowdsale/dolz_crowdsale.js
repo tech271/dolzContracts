@@ -1,5 +1,5 @@
-const TotemCrowdsale = artifacts.require('TotemCrowdsale');
-const TotemToken = artifacts.require('TotemToken');
+const DolzCrowdsale = artifacts.require('DolzCrowdsale');
+const DolzToken = artifacts.require('DolzToken');
 const LambdaToken = artifacts.require('LambdaToken');
 
 const {
@@ -17,7 +17,7 @@ const deployBasicToken = async (symbol, initialHolder) =>
     from: initialHolder,
   });
 
-contract('Totem Crowdsale', (accounts) => {
+contract('Dolz Crowdsale', (accounts) => {
   let crowdsale;
   let token;
   let usdc;
@@ -51,7 +51,7 @@ contract('Totem Crowdsale', (accounts) => {
 
   beforeEach(async () => {
     usdc = await deployBasicToken('USDC', user1);
-    token = await TotemToken.new('Test Token', 'TST', tokenTotalSupply, {
+    token = await DolzToken.new('Test Token', 'TST', tokenTotalSupply, {
       from: owner,
     });
 
@@ -63,7 +63,7 @@ contract('Totem Crowdsale', (accounts) => {
 
     authorizedTokens = [usdc.address, usdt, dai];
 
-    crowdsale = await TotemCrowdsale.new(token.address, {
+    crowdsale = await DolzCrowdsale.new(token.address, {
       from: owner,
     });
 
@@ -104,7 +104,7 @@ contract('Totem Crowdsale', (accounts) => {
           crowdsale.buyToken(usdc.address, '100', ZERO_ADDRESS, {
             from: user1,
           }),
-          'TotemCrowdsale: sale not started yet'
+          'DolzCrowdsale: sale not started yet'
         );
       });
     });
@@ -143,7 +143,7 @@ contract('Totem Crowdsale', (accounts) => {
       });
 
       it('should update sale start if not initialized', async () => {
-        localCrowdsale = await TotemCrowdsale.new(token.address, {
+        localCrowdsale = await DolzCrowdsale.new(token.address, {
           from: owner,
         });
         const receipt = await localCrowdsale.setSaleStart(saleStart, {
@@ -425,76 +425,76 @@ contract('Totem Crowdsale', (accounts) => {
       it('should not update sale start after sale started', async () => {
         await expectRevert(
           crowdsale.setSaleStart(saleStart + 100000000),
-          'TotemCrowdsale: sale already started'
+          'DolzCrowdsale: sale already started'
         );
       });
 
       it('should not update sale end after sale started', async () => {
         await expectRevert(
           crowdsale.setSaleEnd(saleStart + 100000000),
-          'TotemCrowdsale: sale already started'
+          'DolzCrowdsale: sale already started'
         );
       });
 
       it('should not update withdrawal start after sale started', async () => {
         await expectRevert(
           crowdsale.setWithdrawalStart(saleStart + 100000000),
-          'TotemCrowdsale: sale already started'
+          'DolzCrowdsale: sale already started'
         );
       });
 
       it('should not update withdraw period duration after sale started', async () => {
         await expectRevert(
           crowdsale.setWithdrawPeriodDuration(time.duration.weeks(4)),
-          'TotemCrowdsale: sale already started'
+          'DolzCrowdsale: sale already started'
         );
       });
 
       it('should not update withdraw period number after sale started', async () => {
         await expectRevert(
           crowdsale.setWithdrawPeriodDuration(6),
-          'TotemCrowdsale: sale already started'
+          'DolzCrowdsale: sale already started'
         );
       });
 
       it('should not update minimum buy value after sale started', async () => {
         await expectRevert(
           crowdsale.setMinBuyValue(300),
-          'TotemCrowdsale: sale already started'
+          'DolzCrowdsale: sale already started'
         );
       });
 
       it('should not update maximum buy value after sale started', async () => {
         await expectRevert(
           crowdsale.setMaxTokenAmountPerAddress(1000),
-          'TotemCrowdsale: sale already started'
+          'DolzCrowdsale: sale already started'
         );
       });
 
       it('should not update exchange rate after sale started', async () => {
         await expectRevert(
           crowdsale.setExchangeRate(78),
-          'TotemCrowdsale: sale already started'
+          'DolzCrowdsale: sale already started'
         );
       });
 
       it('should not update referral reward percentage after sale started', async () => {
         await expectRevert(
           crowdsale.setReferralRewardPercentage(5),
-          'TotemCrowdsale: sale already started'
+          'DolzCrowdsale: sale already started'
         );
       });
 
       it('should not authorize token after sale started', async () => {
         await expectRevert(
           crowdsale.authorizePaymentCurrencies([testToken1]),
-          'TotemCrowdsale: sale already started'
+          'DolzCrowdsale: sale already started'
         );
       });
     });
 
     describe('Sale', () => {
-      it('should sell Totem token', async () => {
+      it('should sell Dolz token', async () => {
         const value = new BN(web3.utils.toWei('300', 'ether'), 10);
         const expectedTokenAmount = value.mul(exchangeRate);
 
@@ -541,7 +541,7 @@ contract('Totem Crowdsale', (accounts) => {
               from: user1,
             }
           ),
-          'TotemCrowdsale: under minimum buy value'
+          'DolzCrowdsale: under minimum buy value'
         );
       });
 
@@ -555,7 +555,7 @@ contract('Totem Crowdsale', (accounts) => {
               from: user1,
             }
           ),
-          'TotemCrowdsale: above maximum token amount per address'
+          'DolzCrowdsale: above maximum token amount per address'
         );
       });
 
@@ -573,7 +573,7 @@ contract('Totem Crowdsale', (accounts) => {
           crowdsale.buyToken(usdc.address, 1, ZERO_ADDRESS, {
             from: user1,
           }),
-          'TotemCrowdsale: under minimum buy value'
+          'DolzCrowdsale: under minimum buy value'
         );
       });
 
@@ -606,7 +606,7 @@ contract('Totem Crowdsale', (accounts) => {
           crowdsale.buyToken(randomToken.address, '100', ZERO_ADDRESS, {
             from: user1,
           }),
-          'TotemCrowdsale: unauthorized token'
+          'DolzCrowdsale: unauthorized token'
         );
       });
     });
@@ -655,7 +655,7 @@ contract('Totem Crowdsale', (accounts) => {
               from: user1,
             }
           ),
-          'TotemCrowdsale: invalid referral address'
+          'DolzCrowdsale: invalid referral address'
         );
       });
 
@@ -669,7 +669,7 @@ contract('Totem Crowdsale', (accounts) => {
               from: user1,
             }
           ),
-          'TotemCrowdsale: invalid referral address'
+          'DolzCrowdsale: invalid referral address'
         );
       });
     });
@@ -678,7 +678,7 @@ contract('Totem Crowdsale', (accounts) => {
       it('should not finalize if sale not ended', async () => {
         await expectRevert(
           crowdsale.burnRemainingTokens({ from: user1 }),
-          'TotemCrowdsale: sale not ended yet'
+          'DolzCrowdsale: sale not ended yet'
         );
       });
     });
@@ -690,12 +690,12 @@ contract('Totem Crowdsale', (accounts) => {
     });
 
     describe('Sale', () => {
-      it('should not sell Totem token after end', async () => {
+      it('should not sell Dolz token after end', async () => {
         await expectRevert(
           crowdsale.buyToken(usdc.address, '100', ZERO_ADDRESS, {
             from: user1,
           }),
-          'TotemCrowdsale: sale ended'
+          'DolzCrowdsale: sale ended'
         );
       });
     });

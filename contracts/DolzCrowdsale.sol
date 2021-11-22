@@ -5,7 +5,7 @@ pragma solidity 0.8.7;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./ITotemToken.sol";
+import "./IDolzToken.sol";
 
 struct SaleSettings {
     address token;
@@ -27,7 +27,7 @@ struct SaleSettings {
  * @dev Only the address of the token to be sold has to be set at deployment.
  * The rest is accessible via setters until the start of the sale.
  */
-contract TotemCrowdsale is Ownable {
+contract DolzCrowdsale is Ownable {
     using SafeERC20 for IERC20;
 
     // Token to be sold
@@ -102,7 +102,7 @@ contract TotemCrowdsale is Ownable {
      */
     modifier onlyBeforeSaleStart() {
         if (saleStart > 0) {
-            require(block.timestamp < saleStart, "TotemCrowdsale: sale already started");
+            require(block.timestamp < saleStart, "DolzCrowdsale: sale already started");
         }
         _;
     }
@@ -349,13 +349,13 @@ contract TotemCrowdsale is Ownable {
         address referral
     ) external {
         // Checks if the `stableCoin` address is authorized
-        require(authorizedPaymentCurrencies[stableCoin], "TotemCrowdsale: unauthorized token");
+        require(authorizedPaymentCurrencies[stableCoin], "DolzCrowdsale: unauthorized token");
         // Checks if the sale has started
-        require(block.timestamp >= saleStart, "TotemCrowdsale: sale not started yet");
+        require(block.timestamp >= saleStart, "DolzCrowdsale: sale not started yet");
         // Checks if the sale has not ended
-        require(block.timestamp <= saleEnd, "TotemCrowdsale: sale ended");
+        require(block.timestamp <= saleEnd, "DolzCrowdsale: sale ended");
         // Checks if the minimum buy value is provided
-        require(value >= minBuyValue, "TotemCrowdsale: under minimum buy value");
+        require(value >= minBuyValue, "DolzCrowdsale: under minimum buy value");
 
         uint256 tokensAvailable = IERC20(token).balanceOf(address(this));
         // Computes the number of tokens the user will receive
@@ -363,12 +363,12 @@ contract TotemCrowdsale is Ownable {
         // Checks if this sale will exceed the maximum token amount per address allowed
         require(
             userToClaimableAmount[msg.sender] + claimableAmount <= maxTokenAmountPerAddress,
-            "TotemCrowdsale: above maximum token amount per address"
+            "DolzCrowdsale: above maximum token amount per address"
         );
         // Checks if this sale will exceed the number of tokens avaible to sell
         require(
             soldAmount + claimableAmount <= tokensAvailable,
-            "TotemCrowdsale: not enough tokens available"
+            "DolzCrowdsale: not enough tokens available"
         );
         userToClaimableAmount[msg.sender] += claimableAmount;
         soldAmount += claimableAmount;
@@ -378,13 +378,13 @@ contract TotemCrowdsale is Ownable {
             // Checks if the referral is authorized and if it is not the buyer
             require(
                 referrals[referral] && referral != msg.sender,
-                "TotemCrowdsale: invalid referral address"
+                "DolzCrowdsale: invalid referral address"
             );
 
             uint256 referralReward = (claimableAmount * referralRewardPercentage) / 100;
             require(
                 tokensAvailable >= soldAmount + referralReward,
-                "TotemCrowdsale: not enough tokens available"
+                "DolzCrowdsale: not enough tokens available"
             );
             userToClaimableAmount[referral] += referralReward;
             soldAmount += referralReward;
@@ -428,7 +428,7 @@ contract TotemCrowdsale is Ownable {
         // We know our implementation returns true if success, so no need to use safeTransfer
         require(
             IERC20(token).transfer(msg.sender, amountToSend),
-            "TotemCrowdsale: transfer failed"
+            "DolzCrowdsale: transfer failed"
         );
     }
 
@@ -438,9 +438,9 @@ contract TotemCrowdsale is Ownable {
      */
     function burnRemainingTokens() external {
         // Checks if the sale has ended
-        require(block.timestamp > saleEnd, "TotemCrowdsale: sale not ended yet");
+        require(block.timestamp > saleEnd, "DolzCrowdsale: sale not ended yet");
         uint256 balance = IERC20(token).balanceOf(address(this));
         emit RemainingTokensBurnt(balance);
-        ITotemToken(token).burn(balance);
+        IDolzToken(token).burn(balance);
     }
 }
