@@ -1,4 +1,4 @@
-# Totem Token
+# Dolz Token
 
 Truffle version: 5.4.2
 
