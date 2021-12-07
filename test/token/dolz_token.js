@@ -1,4 +1,4 @@
-const TotemToken = artifacts.require('TotemToken');
+const DolzToken = artifacts.require('DolzToken');
 const Bridge = artifacts.require('Bridge');
 
 const {
@@ -18,7 +18,7 @@ const setBridgeAddress = async (token, bridge, owner) => {
   await token.executeBridgeUpdate({ from: owner });
 };
 
-contract('TotemToken', (accounts) => {
+contract('DolzToken', (accounts) => {
   const name = 'Test Token';
   const symbol = 'TST';
   const initialSupply = new BN('1000000000000000000000000', 10); // 1 millions tokens
@@ -27,7 +27,7 @@ contract('TotemToken', (accounts) => {
   const [owner, random, user] = accounts;
 
   beforeEach(async () => {
-    token = await TotemToken.new(name, symbol, initialSupply, {
+    token = await DolzToken.new(name, symbol, initialSupply, {
       from: owner,
     });
     bridge = await Bridge.new(token.address, {
@@ -102,14 +102,14 @@ contract('TotemToken', (accounts) => {
       await token.launchBridgeUpdate(bridge.address, { from: owner });
       await expectRevert(
         token.launchBridgeUpdate(bridge.address, { from: owner }),
-        'TotemToken: current update has to be executed'
+        'DolzToken: current update has to be executed'
       );
     });
 
     it('should not launch bridge update if address is not a contract', async () => {
       await expectRevert(
         token.launchBridgeUpdate(random, { from: owner }),
-        'TotemToken: address provided is not a contract'
+        'DolzToken: address provided is not a contract'
       );
     });
 
@@ -159,7 +159,7 @@ contract('TotemToken', (accounts) => {
       await token.launchBridgeUpdate(bridge.address, { from: owner });
       await expectRevert(
         token.executeBridgeUpdate({ from: owner }),
-        'TotemToken: grace period has not finished'
+        'DolzToken: grace period has not finished'
       );
     });
 
@@ -170,7 +170,7 @@ contract('TotemToken', (accounts) => {
 
       await expectRevert(
         token.executeBridgeUpdate({ from: owner }),
-        'TotemToken: update already executed'
+        'DolzToken: update already executed'
       );
     });
   });
@@ -202,7 +202,7 @@ contract('TotemToken', (accounts) => {
         token.mintFromBridge(user, '1000', {
           from: random,
         }),
-        'TotemToken: access denied'
+        'DolzToken: access denied'
       );
     });
   });
@@ -234,7 +234,7 @@ contract('TotemToken', (accounts) => {
         token.burnFromBridge(owner, '1000', {
           from: random,
         }),
-        'TotemToken: access denied'
+        'DolzToken: access denied'
       );
     });
   });

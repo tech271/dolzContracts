@@ -55,14 +55,11 @@ contract DolzCrowdsale is Ownable {
     // Percentage of the tokens bought that referrals get
     // E.g. for a 30 value, if a buyer buys 100 tokens the referral will get 30
     uint256 private referralRewardPercentage;
-
     // Total number of tokens sold
     uint256 private soldAmount;
 
     // Set the address of token authorized for payments to true
     mapping(address => bool) private authorizedPaymentCurrencies;
-    // Set the address of an authorized referral to true
-    mapping(address => bool) private referrals;
     // Map buyers and referrals addresses to the amount they can claim
     mapping(address => uint256) private userToClaimableAmount;
     // Map buyers and referrals addresses to the amount they already claimed
@@ -110,8 +107,31 @@ contract DolzCrowdsale is Ownable {
     /**
      * @param _token Address of the token to be sold.
      */
-    constructor(address _token) {
+    constructor(
+        address _token,
+        address _wallet,
+        uint256 _saleStart,
+        uint256 _saleEnd,
+        uint256 _withdrawalStart,
+        uint256 _withdrawPeriodDuration,
+        uint256 _withdrawPeriodNumber,
+        uint256 _minBuyValue,
+        uint256 _maxTokenAmountPerAddress,
+        uint256 _exchangeRate,
+        uint256 _referralRewardPercentage // address[] memory _currencies
+    ) {
         token = _token;
+        wallet = _wallet;
+        saleStart = _saleStart;
+        saleEnd = _saleEnd;
+        withdrawalStart = _withdrawalStart;
+        withdrawPeriodDuration = _withdrawPeriodDuration;
+        withdrawPeriodNumber = _withdrawPeriodNumber;
+        minBuyValue = _minBuyValue;
+        maxTokenAmountPerAddress = _maxTokenAmountPerAddress;
+        exchangeRate = _exchangeRate;
+        referralRewardPercentage = _referralRewardPercentage;
+        //    this.authorizePaymentCurrencies(_currencies);
     }
 
     /**
@@ -143,7 +163,7 @@ contract DolzCrowdsale is Ownable {
      * @notice Returns the amount of token a user will be able to withdraw after withdrawal start,
      * depending on vesting periods.
      * @param account Address to get claimable amount of.
-     * @return Number of claimable tokens. 
+     * @return Number of claimable tokens.
      */
     function getClaimableAmount(address account) external view returns (uint256) {
         return userToClaimableAmount[account];
@@ -165,15 +185,6 @@ contract DolzCrowdsale is Ownable {
      */
     function isAuthorizedPaymentCurrency(address paymentCurrency) external view returns (bool) {
         return authorizedPaymentCurrencies[paymentCurrency];
-    }
-
-    /**
-     * @notice Enable to know if an address is authorized to get referral rewards.
-     * @param account Address of the account to check.
-     * @return True if the address is authorized to get referral rewards.
-     */
-    function isReferral(address account) external view returns (bool) {
-        return referrals[account];
     }
 
     /**
@@ -327,15 +338,6 @@ contract DolzCrowdsale is Ownable {
     }
 
     /**
-     * @notice Enable to authorize an address to be mentioned as referral.
-     * @dev Anyone can call it. It means that anyone can register itself as a referral.
-     */
-    function registerAsReferral() external {
-        referrals[msg.sender] = true;
-        emit ReferralRegistered(msg.sender);
-    }
-
-    /**
      * @notice Enable users to buy tokens.
      * @dev User needs to approve this contract to spend the `value` parameter on the `stableCoin`
      * parameter.
@@ -359,7 +361,8 @@ contract DolzCrowdsale is Ownable {
 
         uint256 tokensAvailable = IERC20(token).balanceOf(address(this));
         // Computes the number of tokens the user will receive
-        uint256 claimableAmount = value * exchangeRate;
+        uint256 claimableAmount = (value * exchangeRate) / 1e18;
+
         // Checks if this sale will exceed the maximum token amount per address allowed
         require(
             userToClaimableAmount[msg.sender] + claimableAmount <= maxTokenAmountPerAddress,
@@ -375,11 +378,8 @@ contract DolzCrowdsale is Ownable {
 
         // If a referral is mentioned, adds the reward to its claimable balance
         if (referral != address(0)) {
-            // Checks if the referral is authorized and if it is not the buyer
-            require(
-                referrals[referral] && referral != msg.sender,
-                "DolzCrowdsale: invalid referral address"
-            );
+            // Checks if the referral is not the buyer
+            require(referral != msg.sender, "DolzCrowdsale: invalid referral address");
 
             uint256 referralReward = (claimableAmount * referralRewardPercentage) / 100;
             require(
@@ -426,10 +426,7 @@ contract DolzCrowdsale is Ownable {
         emit TokenWithdrew(msg.sender, amountToSend);
 
         // We know our implementation returns true if success, so no need to use safeTransfer
-        require(
-            IERC20(token).transfer(msg.sender, amountToSend),
-            "DolzCrowdsale: transfer failed"
-        );
+        require(IERC20(token).transfer(msg.sender, amountToSend), "DolzCrowdsale: transfer failed");
     }
 
     /**
