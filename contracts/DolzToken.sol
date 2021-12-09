@@ -9,7 +9,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 struct BridgeUpdate {
     address newBridge;
     uint256 endGracePeriod;
-    bool hasToBeExecuted;
 }
 
 /**
@@ -68,13 +67,16 @@ contract DolzToken is IDolzToken, ERC20, Ownable {
      */
     function launchBridgeUpdate(address newBridge) external onlyOwner {
         // Check if there already is an update waiting to be executed
-        require(!bridgeUpdate.hasToBeExecuted, "DolzToken: current update has to be executed");
+        require(
+            bridgeUpdate.newBridge == address(0),
+            "DolzToken: current update has to be executed"
+        );
         // Make sure the new address is a contract and not an EOA
         require(isContract(newBridge), "DolzToken: address provided is not a contract");
 
         uint256 endGracePeriod = block.timestamp + 604800; // 604800 = 7 days
 
-        bridgeUpdate = BridgeUpdate(newBridge, endGracePeriod, true);
+        bridgeUpdate = BridgeUpdate(newBridge, endGracePeriod);
 
         emit BridgeUpdateLaunched(newBridge, endGracePeriod);
     }
@@ -90,12 +92,12 @@ contract DolzToken is IDolzToken, ERC20, Ownable {
             "DolzToken: grace period has not finished"
         );
         // Check that update have not already been executed
-        require(bridgeUpdate.hasToBeExecuted, "DolzToken: update already executed");
+        require(bridgeUpdate.newBridge != address(0), "DolzToken: update already executed");
 
-        bridgeUpdate.hasToBeExecuted = false;
         bridge = bridgeUpdate.newBridge;
-
         emit BridgeUpdateExecuted(bridgeUpdate.newBridge);
+
+        delete bridgeUpdate;
     }
 
     /**

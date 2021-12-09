@@ -12,9 +12,23 @@ contract('Ownable DolzCrowdsale', function (accounts) {
   const [owner, other] = accounts;
 
   beforeEach(async function () {
-    this.ownable = await DolzCrowdsale.new(ZERO_ADDRESS, {
-      from: owner,
-    });
+    this.ownable = await DolzCrowdsale.new(
+      ZERO_ADDRESS,
+      ZERO_ADDRESS,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      {
+        from: owner,
+      }
+    );
   });
 
   it('has an owner', async function () {

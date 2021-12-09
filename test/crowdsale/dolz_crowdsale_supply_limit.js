@@ -1,4 +1,4 @@
-const DolzCrowdsale = artifacts.require('DolzCrowdsale');
+const MockDolzCrowdsale = artifacts.require('MockDolzCrowdsale');
 const DolzToken = artifacts.require('DolzToken');
 const LambdaToken = artifacts.require('LambdaToken');
 
@@ -9,7 +9,7 @@ const {
   time,
 } = require('@openzeppelin/test-helpers');
 const { MAX_INT256, ZERO_ADDRESS } = constants;
-const { web3 } = require('@openzeppelin/test-helpers/src/setup');
+const tenPowerEighteen = new BN(web3.utils.toWei('1', 'ether'), 10);
 
 const deployBasicToken = async (symbol, initialHolder) =>
   LambdaToken.new(symbol, symbol, web3.utils.toWei('1000000', 'ether'), {
@@ -31,9 +31,12 @@ contract('Dolz Crowdsale Supply Limit', (accounts) => {
     web3.utils.toWei('300000', 'ether'),
     10
   );
-  const exchangeRate = new BN(50, 10);
+  const exchangeRate = new BN(50, 10).mul(tenPowerEighteen);
   const referralRewardPercentage = new BN(2, 10);
-  const tokenTotalSupply = new BN(web3.utils.toWei('100000', 'ether'), 10);
+  const tokenAmountToSell = new BN(web3.utils.toWei('1000000', 'ether'), 10);
+  const tokenTotalSupply = tokenAmountToSell
+    .mul(new BN(102, 10))
+    .div(new BN(100, 10));
 
   const [owner, user1, user2, wallet, usdt, dai, testToken1, testToken2] =
     accounts;
@@ -52,77 +55,63 @@ contract('Dolz Crowdsale Supply Limit', (accounts) => {
 
     authorizedTokens = [usdc.address, usdt, dai];
 
-    crowdsale = await DolzCrowdsale.new(token.address, {
-      from: owner,
-    });
-    await crowdsale.setWallet(wallet);
-    await crowdsale.setSaleEnd(saleEnd);
-    await crowdsale.setWithdrawalStart(withdrawalStart);
-    await crowdsale.setWithdrawPeriodDuration(withdrawPeriodDuration);
-    await crowdsale.setWithdrawPeriodNumber(withdrawPeriodNumber);
-    await crowdsale.setMinBuyValue(minBuyValue);
-    await crowdsale.setMaxTokenAmountPerAddress(maxTokenAmountPerAddress);
-    await crowdsale.setExchangeRate(exchangeRate);
-    await crowdsale.setReferralRewardPercentage(referralRewardPercentage);
+    crowdsale = await MockDolzCrowdsale.new(
+      token.address,
+      wallet,
+      saleStart,
+      saleEnd,
+      withdrawalStart,
+      withdrawPeriodDuration,
+      withdrawPeriodNumber,
+      minBuyValue,
+      maxTokenAmountPerAddress,
+      exchangeRate,
+      referralRewardPercentage,
+      tokenAmountToSell,
+      {
+        from: owner,
+      }
+    );
+
     await crowdsale.authorizePaymentCurrencies([usdc.address, usdt, dai]);
-    await crowdsale.setSaleStart(saleStart);
+    // await crowdsale.setSaleStart(saleStart);
 
     await token.transfer(crowdsale.address, tokenTotalSupply, { from: owner });
     await usdc.approve(crowdsale.address, MAX_INT256, { from: user1 });
   });
 
   describe('During sale', () => {
-    before(async () => {
-      await time.increase(time.duration.days(2));
+    beforeEach(async () => {
+      await crowdsale.__increaseTimeFrom(time.duration.days(2));
     });
 
     describe('Sale', () => {
-      it('should not sell if not enough supply', async () => {
-        const crowdsaleBalance = await token.balanceOf(crowdsale.address);
-        const crowdsaleBalanceValue = crowdsaleBalance.div(exchangeRate);
+      it('should not sell if not enough tokens to sell', async () => {
+        const amount = new BN(web3.utils.toWei('400', 'ether'));
+        const amountValue = amount.mul(exchangeRate).div(tenPowerEighteen);
+        await crowdsale.__setSoldAmount(
+          tokenAmountToSell.sub(amountValue).add(new BN(1, 10))
+        );
 
         await expectRevert(
-          crowdsale.buyToken(
-            usdc.address,
-            crowdsaleBalanceValue.add(new BN(1, 10)),
-            ZERO_ADDRESS,
-            {
-              from: user1,
-            }
-          ),
+          crowdsale.buyToken(usdc.address, amount, ZERO_ADDRESS, {
+            from: user1,
+          }),
           'DolzCrowdsale: not enough tokens available'
         );
       });
 
       it('should sell all tokens left', async () => {
-        const tokenTotalSupplyValue = tokenTotalSupply.div(exchangeRate);
-        await crowdsale.buyToken(
-          usdc.address,
-          tokenTotalSupplyValue,
-          ZERO_ADDRESS,
-          {
-            from: user1,
-          }
-        );
+        const amount = new BN(web3.utils.toWei('400', 'ether'));
+        const amountValue = amount.mul(exchangeRate).div(tenPowerEighteen);
+        await crowdsale.__setSoldAmount(tokenAmountToSell.sub(amountValue));
+
+        await crowdsale.buyToken(usdc.address, amount, ZERO_ADDRESS, {
+          from: user1,
+        });
         const claimableAmount = await crowdsale.getClaimableAmount(user1);
 
-        assert(claimableAmount.eq(tokenTotalSupply));
-      });
-    });
-
-    describe('Referral', () => {
-      it('should not sell if not enough supply for referral', async () => {
-        await crowdsale.registerAsReferral({ from: user2 });
-
-        const crowdsaleBalance = await token.balanceOf(crowdsale.address);
-        const supplyLeftValue = crowdsaleBalance.div(exchangeRate);
-
-        await expectRevert(
-          crowdsale.buyToken(usdc.address, supplyLeftValue, user2, {
-            from: user1,
-          }),
-          'DolzCrowdsale: not enough tokens available'
-        );
+        assert(claimableAmount.eq(amountValue));
       });
     });
   });

@@ -71,11 +71,10 @@ contract('DolzToken', (accounts) => {
   });
 
   describe('Bridge update', () => {
-    it('should initialise update at zero address, 0 and false', async () => {
+    it('should initialise update at default', async () => {
       const res = await token.getBridgeUpdate();
       assert(res.newBridge === ZERO_ADDRESS);
       assert(res.endGracePeriod === '0');
-      assert(res.hasToBeExecuted === false);
     });
 
     it('should launch bridge update', async () => {
@@ -88,7 +87,6 @@ contract('DolzToken', (accounts) => {
         newBridge: bridge.address,
       });
       assert(res.newBridge === bridge.address);
-      assert(res.hasToBeExecuted === true);
     });
 
     it('should not launch bridge update if not owner', async () => {
@@ -126,7 +124,7 @@ contract('DolzToken', (accounts) => {
         newBridge: bridge.address,
       });
       assert(resBridge === bridge.address);
-      assert(resUpdate.hasToBeExecuted === false);
+      assert(resUpdate.newBridge === ZERO_ADDRESS);
     });
 
     it('should not execute bridge update if not owner', async () => {
