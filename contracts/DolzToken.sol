@@ -25,8 +25,6 @@ contract DolzToken is IDolzToken, ERC20, Ownable {
     }
 
     /**
-     * @notice
-     * @dev
      * @param name Name of the token.
      * @param symbol Symbol of the token.
      * @param initialSupply Initial supply minted during deployment for the deployer.
@@ -51,8 +49,6 @@ contract DolzToken is IDolzToken, ERC20, Ownable {
      * @return Bridge update proposal informations.
      * 1) The address of the bridge proposed.
      * 2) The timestamp in second from when the proposal can be executed.
-     * 3) If the proposal has to be executed or not
-     * (true -> the proposal has not been executed yet, false -> the proposal has already been executed).
      */
     function getBridgeUpdate() external view returns (BridgeUpdate memory) {
         return bridgeUpdate;
