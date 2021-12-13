@@ -17,24 +17,20 @@ module.exports = async (deployer, network, accounts) => {
   let maxTokenAmountPerAddress;
   let exchangeRate;
   let referralRewardPercentage;
-  const stableCoins = [];
 
   wallet = accounts[0];
 
   if (network === 'testnet') {
-    saleStart = 1638805549;                                         //23 nov
-    saleEnd = 1640268733;                                           //22 dec
+    saleStart = Math.floor(Date.now() / 1000) + 300;                                            //23 nov
+    saleEnd = Math.floor(Date.now() / 1000) + (4 * 24 * 3600);                                            //22 dec
     withdrawalStart = saleEnd;                                      //claim start (end of presale)
     withdrawPeriodDuration = time.duration.days(10).toNumber();     //with claim every 10 days
     withdrawPeriodNumber = 10;                                      //10 periods duration claims
     minBuyValue = web3.utils.toWei('1', 'ether');                   //min buy 1 USD
     maxTokenAmountPerAddress = web3.utils.toWei('100000', 'ether'); //max buy 100000 DOLZ
     exchangeRate = '83333333300000000000';                          //50: 1 dolz = 50 USD
-    referralRewardPercentage = 2;                                   //ref: 2%
+    referralRewardPercentage = 5;                                   //ref: 2%
 
-    stableCoins.push('0x64544969ed7EBf5f083679233325356EbE738930'); //usdc
-    stableCoins.push('0x337610d27c682E347C9cD60BD4b3b107C9d34dDd'); //usdt
-    stableCoins.push('0xEC5dCb5Dbf4B114C9d0F65BcCAb49EC54F6A0867'); //dai
   }
   else // main net
   {
@@ -43,13 +39,11 @@ module.exports = async (deployer, network, accounts) => {
     withdrawalStart = saleEnd;                                      //claim start (end of presale)
     withdrawPeriodDuration = time.duration.days(10).toNumber();     //with claim every 10 days
     withdrawPeriodNumber = 10;                                      //10 periods duration claims
-    minBuyValue = web3.utils.toWei('500', 'ether');                 //min buy 500 USD
+    minBuyValue = web3.utils.toWei('500', 'ether');                 //min buy in tokens
     maxTokenAmountPerAddress = web3.utils.toWei('20000', 'ether');  //max buy 
     exchangeRate = '83333333300000000000';                                      //50: 1 dolz = 50 USD
-    referralRewardPercentage = 2;                                   //ref: 2%
+    referralRewardPercentage = 5;                                   //ref: 2%
 
-    stableCoins.push('0x64544969ed7EBf5f083679233325356EbE738930'); //usdc
-    stableCoins.push('0x337610d27c682E347C9cD60BD4b3b107C9d34dDd'); //usdt
   }
 
   // get dolztoken
@@ -89,9 +83,7 @@ module.exports = async (deployer, network, accounts) => {
     }
   );
 
-  let presale = await DolzCrowdsale.deployed();
 
-  presale.authorizePaymentCurrencies(stableCoins);
 
 
   // try {

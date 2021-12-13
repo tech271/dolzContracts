@@ -55,8 +55,10 @@ contract DolzCrowdsale is Ownable {
     // Percentage of the tokens bought that referrals get
     // E.g. for a 30 value, if a buyer buys 100 tokens the referral will get 30
     uint256 private referralRewardPercentage;
-    // Total number of tokens sold
+    // Total number of tokens sold + given to referrer
     uint256 private soldAmount;
+    // Total number of tokens sold
+    uint256 private realSoldAmount;
 
     // Set the address of token authorized for payments to true
     mapping(address => bool) private authorizedPaymentCurrencies;
@@ -156,7 +158,7 @@ contract DolzCrowdsale is Ownable {
     }
 
     function getSoldAmount() external view returns (uint256) {
-        return soldAmount;
+        return realSoldAmount;
     }
 
     /**
@@ -361,6 +363,7 @@ contract DolzCrowdsale is Ownable {
 
         uint256 tokensAvailable = IERC20(token).balanceOf(address(this));
         // Computes the number of tokens the user will receive
+
         uint256 claimableAmount = (value * exchangeRate) / 1e18;
 
         // Checks if this sale will exceed the maximum token amount per address allowed
@@ -375,6 +378,7 @@ contract DolzCrowdsale is Ownable {
         );
         userToClaimableAmount[msg.sender] += claimableAmount;
         soldAmount += claimableAmount;
+        realSoldAmount += claimableAmount;
 
         // If a referral is mentioned, adds the reward to its claimable balance
         if (referral != address(0)) {
