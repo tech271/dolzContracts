@@ -9,7 +9,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 struct BridgeUpdate {
     address newBridge;
     uint256 endGracePeriod;
-    bool hasToBeExecuted;
 }
 
 /**
@@ -26,8 +25,6 @@ contract DolzToken is IDolzToken, ERC20, Ownable {
     }
 
     /**
-     * @notice
-     * @dev
      * @param name Name of the token.
      * @param symbol Symbol of the token.
      * @param initialSupply Initial supply minted during deployment for the deployer.
@@ -52,8 +49,6 @@ contract DolzToken is IDolzToken, ERC20, Ownable {
      * @return Bridge update proposal informations.
      * 1) The address of the bridge proposed.
      * 2) The timestamp in second from when the proposal can be executed.
-     * 3) If the proposal has to be executed or not
-     * (true -> the proposal has not been executed yet, false -> the proposal has already been executed).
      */
     function getBridgeUpdate() external view returns (BridgeUpdate memory) {
         return bridgeUpdate;
@@ -68,13 +63,16 @@ contract DolzToken is IDolzToken, ERC20, Ownable {
      */
     function launchBridgeUpdate(address newBridge) external onlyOwner {
         // Check if there already is an update waiting to be executed
-        require(!bridgeUpdate.hasToBeExecuted, "DolzToken: current update has to be executed");
+        require(
+            bridgeUpdate.newBridge == address(0),
+            "DolzToken: current update has to be executed"
+        );
         // Make sure the new address is a contract and not an EOA
         require(isContract(newBridge), "DolzToken: address provided is not a contract");
 
         uint256 endGracePeriod = block.timestamp + 604800; // 604800 = 7 days
 
-        bridgeUpdate = BridgeUpdate(newBridge, endGracePeriod, true);
+        bridgeUpdate = BridgeUpdate(newBridge, endGracePeriod);
 
         emit BridgeUpdateLaunched(newBridge, endGracePeriod);
     }
@@ -90,12 +88,12 @@ contract DolzToken is IDolzToken, ERC20, Ownable {
             "DolzToken: grace period has not finished"
         );
         // Check that update have not already been executed
-        require(bridgeUpdate.hasToBeExecuted, "DolzToken: update already executed");
+        require(bridgeUpdate.newBridge != address(0), "DolzToken: update already executed");
 
-        bridgeUpdate.hasToBeExecuted = false;
         bridge = bridgeUpdate.newBridge;
-
         emit BridgeUpdateExecuted(bridgeUpdate.newBridge);
+
+        delete bridgeUpdate;
     }
 
     /**

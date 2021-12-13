@@ -19,6 +19,7 @@ struct SaleSettings {
     uint256 maxTokenAmountPerAddress;
     uint256 exchangeRate;
     uint256 referralRewardPercentage;
+    uint256 amountToSell;
 }
 
 /**
@@ -35,11 +36,11 @@ contract DolzCrowdsale is Ownable {
     // Wallet that receives the payment tokens
     address private wallet;
     // Timestamp in seconds of the start of the ICO
-    uint256 private saleStart;
+    uint256 internal saleStart;
     // Timestamp in seconds of the end of the ICO
-    uint256 private saleEnd;
+    uint256 internal saleEnd;
     // Timestamp in seconds when users can start to withdraw
-    uint256 private withdrawalStart;
+    uint256 internal withdrawalStart;
     // Duration in seconds of each vesting period
     uint256 private withdrawPeriodDuration;
     // Number of vesting period
@@ -55,10 +56,10 @@ contract DolzCrowdsale is Ownable {
     // Percentage of the tokens bought that referrals get
     // E.g. for a 30 value, if a buyer buys 100 tokens the referral will get 30
     uint256 private referralRewardPercentage;
-    // Total number of tokens sold + given to referrer
-    uint256 private soldAmount;
-    // Total number of tokens sold
-    uint256 private realSoldAmount;
+    // Total number of tokens sold (exculdes referral rewards)
+    uint256 internal soldAmount;
+    // Amount of tokens available to buyers
+    uint256 private amountToSell;
 
     // Set the address of token authorized for payments to true
     mapping(address => bool) private authorizedPaymentCurrencies;
@@ -83,6 +84,7 @@ contract DolzCrowdsale is Ownable {
         uint256 newReferralRewardPercentage,
         address indexed updater
     );
+    event AmountToSellUpdated(uint256 newAmountToSell, address indexed updater);
 
     event PaymentCurrenciesAuthorized(address[] tokens, address indexed updater);
 
@@ -106,9 +108,6 @@ contract DolzCrowdsale is Ownable {
         _;
     }
 
-    /**
-     * @param _token Address of the token to be sold.
-     */
     constructor(
         address _token,
         address _wallet,
@@ -120,7 +119,8 @@ contract DolzCrowdsale is Ownable {
         uint256 _minBuyValue,
         uint256 _maxTokenAmountPerAddress,
         uint256 _exchangeRate,
-        uint256 _referralRewardPercentage // address[] memory _currencies
+        uint256 _referralRewardPercentage,
+        uint256 _amountToSell
     ) {
         token = _token;
         wallet = _wallet;
@@ -133,7 +133,7 @@ contract DolzCrowdsale is Ownable {
         maxTokenAmountPerAddress = _maxTokenAmountPerAddress;
         exchangeRate = _exchangeRate;
         referralRewardPercentage = _referralRewardPercentage;
-        //    this.authorizePaymentCurrencies(_currencies);
+        amountToSell = _amountToSell;
     }
 
     /**
@@ -153,12 +153,13 @@ contract DolzCrowdsale is Ownable {
                 minBuyValue,
                 maxTokenAmountPerAddress,
                 exchangeRate,
-                referralRewardPercentage
+                referralRewardPercentage,
+                amountToSell
             );
     }
 
     function getSoldAmount() external view returns (uint256) {
-        return realSoldAmount;
+        return soldAmount;
     }
 
     /**
@@ -323,6 +324,17 @@ contract DolzCrowdsale is Ownable {
     }
 
     /**
+     * @notice Enable to update the amount of token available to sell.
+     * @dev Only executable before the start of the sale.
+     * Only executable by the owner of the contract.
+     * @param newAmountToSell Integer representing the amount of token to sell.
+     */
+    function setAmountToSell(uint256 newAmountToSell) external onlyBeforeSaleStart onlyOwner {
+        amountToSell = newAmountToSell;
+        emit AmountToSellUpdated(newAmountToSell, msg.sender);
+    }
+
+    /**
      * @notice Enable to authorize tokens to be used as payment during sales.
      * @dev Only executable before the start of the sale.
      * Only executable by the owner of the contract.
@@ -361,9 +373,7 @@ contract DolzCrowdsale is Ownable {
         // Checks if the minimum buy value is provided
         require(value >= minBuyValue, "DolzCrowdsale: under minimum buy value");
 
-        uint256 tokensAvailable = IERC20(token).balanceOf(address(this));
         // Computes the number of tokens the user will receive
-
         uint256 claimableAmount = (value * exchangeRate) / 1e18;
 
         // Checks if this sale will exceed the maximum token amount per address allowed
@@ -373,12 +383,11 @@ contract DolzCrowdsale is Ownable {
         );
         // Checks if this sale will exceed the number of tokens avaible to sell
         require(
-            soldAmount + claimableAmount <= tokensAvailable,
+            soldAmount + claimableAmount <= amountToSell,
             "DolzCrowdsale: not enough tokens available"
         );
         userToClaimableAmount[msg.sender] += claimableAmount;
         soldAmount += claimableAmount;
-        realSoldAmount += claimableAmount;
 
         // If a referral is mentioned, adds the reward to its claimable balance
         if (referral != address(0)) {
@@ -386,12 +395,7 @@ contract DolzCrowdsale is Ownable {
             require(referral != msg.sender, "DolzCrowdsale: invalid referral address");
 
             uint256 referralReward = (claimableAmount * referralRewardPercentage) / 100;
-            require(
-                tokensAvailable >= soldAmount + referralReward,
-                "DolzCrowdsale: not enough tokens available"
-            );
             userToClaimableAmount[referral] += referralReward;
-            soldAmount += referralReward;
         }
 
         emit TokenBought(msg.sender, stableCoin, value, referral);

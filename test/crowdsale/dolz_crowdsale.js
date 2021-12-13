@@ -1,4 +1,4 @@
-const DolzCrowdsale = artifacts.require('DolzCrowdsale');
+const MockDolzCrowdsale = artifacts.require('MockDolzCrowdsale');
 const DolzToken = artifacts.require('DolzToken');
 const LambdaToken = artifacts.require('LambdaToken');
 
@@ -10,7 +10,7 @@ const {
   time,
 } = require('@openzeppelin/test-helpers');
 const { MAX_INT256, ZERO_ADDRESS } = constants;
-const { web3 } = require('@openzeppelin/test-helpers/src/setup');
+const tenPowerEighteen = new BN(web3.utils.toWei('1', 'ether'), 10);
 
 const deployBasicToken = async (symbol, initialHolder) =>
   LambdaToken.new(symbol, symbol, web3.utils.toWei('1000000', 'ether'), {
@@ -32,16 +32,18 @@ contract('Dolz Crowdsale', (accounts) => {
     web3.utils.toWei('300000', 'ether'),
     10
   );
-  const exchangeRate = new BN(50, 10);
+  const exchangeRate = new BN(50, 10).mul(tenPowerEighteen);
   const referralRewardPercentage = new BN(2, 10);
-  const tokenTotalSupply = new BN(web3.utils.toWei('1000000', 'ether'), 10);
+  const tokenAmountToSell = new BN(web3.utils.toWei('1000000', 'ether'), 10);
+  const tokenTotalSupply = tokenAmountToSell
+    .mul(new BN(102, 10))
+    .div(new BN(100, 10));
 
   const [
     owner,
     user1,
     user2,
     user3,
-    referral,
     wallet,
     usdt,
     dai,
@@ -63,30 +65,75 @@ contract('Dolz Crowdsale', (accounts) => {
 
     authorizedTokens = [usdc.address, usdt, dai];
 
-    crowdsale = await DolzCrowdsale.new(token.address, {
-      from: owner,
-    });
+    crowdsale = await MockDolzCrowdsale.new(
+      token.address,
+      wallet,
+      saleStart,
+      saleEnd,
+      withdrawalStart,
+      withdrawPeriodDuration,
+      withdrawPeriodNumber,
+      minBuyValue,
+      maxTokenAmountPerAddress,
+      exchangeRate,
+      referralRewardPercentage,
+      tokenAmountToSell,
+      {
+        from: owner,
+      }
+    );
 
-    await crowdsale.setWallet(wallet);
-    await crowdsale.setSaleEnd(saleEnd);
-    await crowdsale.setWithdrawalStart(withdrawalStart);
-    await crowdsale.setWithdrawPeriodDuration(withdrawPeriodDuration);
-    await crowdsale.setWithdrawPeriodNumber(withdrawPeriodNumber);
-    await crowdsale.setMinBuyValue(minBuyValue);
-    await crowdsale.setMaxTokenAmountPerAddress(maxTokenAmountPerAddress);
-    await crowdsale.setExchangeRate(exchangeRate);
-    await crowdsale.setReferralRewardPercentage(referralRewardPercentage);
     await crowdsale.authorizePaymentCurrencies([usdc.address, usdt, dai]);
-    await crowdsale.setSaleStart(saleStart);
 
     await token.transfer(crowdsale.address, tokenTotalSupply, { from: owner });
     await usdc.approve(crowdsale.address, MAX_INT256, { from: user1 });
   });
 
   describe('Initialisation', () => {
-    it('should initialize with token address', async () => {
+    it('should initialize with passed values', async () => {
       const saleSettings = await crowdsale.getSaleSettings();
-      assert(saleSettings.token === token.address);
+
+      assert(saleSettings.token === token.address, 'Wrong token');
+      assert(saleSettings.wallet === wallet, 'Wrong wallet');
+      assert(parseInt(saleSettings.saleStart) === saleStart, 'Wrong saleStart');
+      assert(parseInt(saleSettings.saleEnd) === saleEnd, 'Wrong saleEnd');
+      assert(
+        parseInt(saleSettings.withdrawalStart) === withdrawalStart,
+        'Wrong withdrawalStart'
+      );
+      assert(
+        parseInt(saleSettings.withdrawPeriodDuration) ===
+          withdrawPeriodDuration,
+        'Wrong withdrawPeriodDuration'
+      );
+      assert(
+        parseInt(saleSettings.withdrawPeriodNumber) === withdrawPeriodNumber,
+        'Wrong withdrawPeriodNumber'
+      );
+      assert(
+        new BN(saleSettings.minBuyValue).eq(minBuyValue),
+        'Wrong minBuyValue'
+      );
+      assert(
+        new BN(saleSettings.maxTokenAmountPerAddress).eq(
+          maxTokenAmountPerAddress
+        ),
+        'Wrong maxTokenAmountPerAddress'
+      );
+      assert(
+        new BN(saleSettings.exchangeRate).eq(exchangeRate),
+        'Wrong exchangeRate'
+      );
+      assert(
+        new BN(saleSettings.referralRewardPercentage).eq(
+          referralRewardPercentage
+        ),
+        'Wrong referralRewardPercentage'
+      );
+      assert(
+        new BN(saleSettings.amountToSell).eq(tokenAmountToSell),
+        'Wrong amountToSell'
+      );
     });
 
     it('should authorize payment currencies', async () => {
@@ -143,9 +190,23 @@ contract('Dolz Crowdsale', (accounts) => {
       });
 
       it('should update sale start if not initialized', async () => {
-        localCrowdsale = await DolzCrowdsale.new(token.address, {
-          from: owner,
-        });
+        localCrowdsale = await MockDolzCrowdsale.new(
+          token.address,
+          wallet,
+          saleStart,
+          saleEnd,
+          withdrawalStart,
+          withdrawPeriodDuration,
+          withdrawPeriodNumber,
+          minBuyValue,
+          maxTokenAmountPerAddress,
+          exchangeRate,
+          referralRewardPercentage,
+          tokenAmountToSell,
+          {
+            from: owner,
+          }
+        );
         const receipt = await localCrowdsale.setSaleStart(saleStart, {
           from: owner,
         });
@@ -367,6 +428,29 @@ contract('Dolz Crowdsale', (accounts) => {
         );
       });
 
+      it('should update amountToSell', async () => {
+        const newAmountToSell = 5000;
+        const receipt = await crowdsale.setAmountToSell(newAmountToSell, {
+          from: owner,
+        });
+        const saleSettings = await crowdsale.getSaleSettings();
+
+        expectEvent(receipt, 'AmountToSellUpdated', {
+          newAmountToSell: new BN(newAmountToSell, 10),
+          updater: owner,
+        });
+        assert(parseInt(saleSettings.amountToSell) === newAmountToSell);
+      });
+
+      it('should not update amountToSell if not owner', async () => {
+        await expectRevert(
+          crowdsale.setAmountToSell(500, {
+            from: user1,
+          }),
+          'Ownable: caller is not the owner'
+        );
+      });
+
       it('should authorize one token', async () => {
         const receipt = await crowdsale.authorizePaymentCurrencies(
           [testToken1],
@@ -402,23 +486,11 @@ contract('Dolz Crowdsale', (accounts) => {
         );
       });
     });
-
-    describe('Referral', () => {
-      it('should register referral', async () => {
-        const receipt = await crowdsale.registerAsReferral({ from: referral });
-        const isReferral = await crowdsale.isReferral(referral);
-
-        expectEvent(receipt, 'ReferralRegistered', {
-          newReferral: referral,
-        });
-        assert(isReferral === true);
-      });
-    });
   });
 
   describe('During sale', () => {
-    before(async () => {
-      await time.increase(time.duration.days(2));
+    beforeEach(async () => {
+      await crowdsale.__increaseTimeFrom(time.duration.days(2));
     });
 
     describe('Setters', () => {
@@ -485,6 +557,13 @@ contract('Dolz Crowdsale', (accounts) => {
         );
       });
 
+      it('should not update amount to sell after sale started', async () => {
+        await expectRevert(
+          crowdsale.setAmountToSell(500),
+          'DolzCrowdsale: sale already started'
+        );
+      });
+
       it('should not authorize token after sale started', async () => {
         await expectRevert(
           crowdsale.authorizePaymentCurrencies([testToken1]),
@@ -496,7 +575,9 @@ contract('Dolz Crowdsale', (accounts) => {
     describe('Sale', () => {
       it('should sell Dolz token', async () => {
         const value = new BN(web3.utils.toWei('300', 'ether'), 10);
-        const expectedTokenAmount = value.mul(exchangeRate);
+        const expectedTokenAmount = value
+          .mul(exchangeRate)
+          .div(tenPowerEighteen);
 
         const receipt = await crowdsale.buyToken(
           usdc.address,
@@ -549,7 +630,10 @@ contract('Dolz Crowdsale', (accounts) => {
         await expectRevert(
           crowdsale.buyToken(
             usdc.address,
-            maxTokenAmountPerAddress.div(exchangeRate).mul(new BN(2, 10)),
+            maxTokenAmountPerAddress
+              .mul(tenPowerEighteen)
+              .div(exchangeRate)
+              .mul(new BN(2, 10)),
             ZERO_ADDRESS,
             {
               from: user1,
@@ -562,7 +646,7 @@ contract('Dolz Crowdsale', (accounts) => {
       it('should not sell if above maximum token amount per address in multiple times', async () => {
         await crowdsale.buyToken(
           usdc.address,
-          maxTokenAmountPerAddress.div(exchangeRate),
+          maxTokenAmountPerAddress.mul(tenPowerEighteen).div(exchangeRate),
           ZERO_ADDRESS,
           {
             from: user1,
@@ -614,12 +698,12 @@ contract('Dolz Crowdsale', (accounts) => {
     describe('Referral', () => {
       it('should apply referral reward', async () => {
         const value = new BN(web3.utils.toWei('400', 'ether'), 10);
-        const expectedTokenAmount = value.mul(exchangeRate);
+        const expectedTokenAmount = value
+          .mul(exchangeRate)
+          .div(tenPowerEighteen);
         const expectedReferralAmount = expectedTokenAmount
           .mul(referralRewardPercentage)
           .div(new BN(100, 10));
-
-        await crowdsale.registerAsReferral({ from: user2 });
 
         const initialClaimableAmount = await crowdsale.getClaimableAmount(
           user2
@@ -638,25 +722,7 @@ contract('Dolz Crowdsale', (accounts) => {
             .sub(initialClaimableAmount)
             .eq(expectedReferralAmount)
         );
-        assert(
-          new BN(soldAmount, 10).eq(
-            expectedTokenAmount.add(expectedReferralAmount)
-          )
-        );
-      });
-
-      it('should not accept address different from buyers and zero for referral', async () => {
-        await expectRevert(
-          crowdsale.buyToken(
-            usdc.address,
-            web3.utils.toWei('400', 'ether'),
-            user2,
-            {
-              from: user1,
-            }
-          ),
-          'DolzCrowdsale: invalid referral address'
-        );
+        assert(new BN(soldAmount, 10).eq(expectedTokenAmount));
       });
 
       it('should not allow referral to be buyer', async () => {
@@ -685,8 +751,8 @@ contract('Dolz Crowdsale', (accounts) => {
   });
 
   describe('After sale', () => {
-    before(async () => {
-      await time.increase(time.duration.days(40));
+    beforeEach(async () => {
+      await crowdsale.__increaseTimeFrom(time.duration.days(40));
     });
 
     describe('Sale', () => {

@@ -1,4 +1,4 @@
-const DolzCrowdsale = artifacts.require('DolzCrowdsale');
+const MockDolzCrowdsale = artifacts.require('MockDolzCrowdsale');
 const DolzToken = artifacts.require('DolzToken');
 const LambdaToken = artifacts.require('LambdaToken');
 
@@ -10,22 +10,17 @@ const {
   time,
 } = require('@openzeppelin/test-helpers');
 const { MAX_INT256, ZERO_ADDRESS } = constants;
+const tenPowerEighteen = new BN(web3.utils.toWei('1', 'ether'), 10);
 
 const deployBasicToken = async (symbol, initialHolder) =>
   LambdaToken.new(symbol, symbol, MAX_INT256, {
     from: initialHolder,
   });
 
-const addWeeks = (timestamp, nbWeeks) => {
-  return timestamp + time.duration.weeks(nbWeeks).toNumber();
-};
-
 contract('Dolz Crowdsale Withdrawal', (accounts) => {
   let crowdsale;
   let token;
   let usdc;
-
-  const tokenTotalSupply = new BN(web3.utils.toWei('100000000', 'ether'), 10);
 
   let withdrawalStart;
   const withdrawPeriodDuration = time.duration.weeks(4).toNumber();
@@ -35,8 +30,12 @@ contract('Dolz Crowdsale Withdrawal', (accounts) => {
     web3.utils.toWei('300000', 'ether'),
     10
   );
-  const exchangeRate = new BN(50, 10);
+  const exchangeRate = new BN(50, 10).mul(tenPowerEighteen);
   const referralRewardPercentage = new BN(2, 10);
+  const tokenAmountToSell = new BN(web3.utils.toWei('1000000', 'ether'), 10);
+  const tokenTotalSupply = tokenAmountToSell
+    .mul(new BN(102, 10))
+    .div(new BN(100, 10));
 
   const [owner, user1, user2, user3, user4, user5, user6, wallet] = accounts;
 
@@ -45,11 +44,21 @@ contract('Dolz Crowdsale Withdrawal', (accounts) => {
   let user4Bought = new BN(web3.utils.toWei('602', 'ether'), 10);
   let user5Bought = new BN(web3.utils.toWei('602', 'ether'), 10);
   let user6Bought = new BN(web3.utils.toWei('300', 'ether'), 10);
-  let user1expectsTotalToken = user1Bought.mul(exchangeRate);
-  let user3expectsTotalToken = user3Bought.mul(exchangeRate);
-  let user4expectsTotalToken = user4Bought.mul(exchangeRate);
-  let user5expectsTotalToken = user5Bought.mul(exchangeRate);
-  let user6expectsTotalToken = user6Bought.mul(exchangeRate);
+  let user1expectsTotalToken = user1Bought
+    .div(tenPowerEighteen)
+    .mul(exchangeRate);
+  let user3expectsTotalToken = user3Bought
+    .div(tenPowerEighteen)
+    .mul(exchangeRate);
+  let user4expectsTotalToken = user4Bought
+    .div(tenPowerEighteen)
+    .mul(exchangeRate);
+  let user5expectsTotalToken = user5Bought
+    .div(tenPowerEighteen)
+    .mul(exchangeRate);
+  let user6expectsTotalToken = user6Bought
+    .div(tenPowerEighteen)
+    .mul(exchangeRate);
 
   before(async () => {
     usdc = await deployBasicToken('USDC', user1);
@@ -65,20 +74,26 @@ contract('Dolz Crowdsale Withdrawal', (accounts) => {
 
     const authorizedTokens = [usdc.address];
 
-    crowdsale = await DolzCrowdsale.new(token.address, {
-      from: owner,
-    });
-    await crowdsale.setWallet(wallet);
-    await crowdsale.setSaleEnd(saleEnd);
-    await crowdsale.setWithdrawalStart(withdrawalStart);
-    await crowdsale.setWithdrawPeriodDuration(withdrawPeriodDuration);
-    await crowdsale.setWithdrawPeriodNumber(withdrawPeriodNumber);
-    await crowdsale.setMinBuyValue(minBuyValue);
-    await crowdsale.setMaxTokenAmountPerAddress(maxTokenAmountPerAddress);
-    await crowdsale.setExchangeRate(exchangeRate);
-    await crowdsale.setReferralRewardPercentage(referralRewardPercentage);
+    crowdsale = await MockDolzCrowdsale.new(
+      token.address,
+      wallet,
+      saleStart,
+      saleEnd,
+      withdrawalStart,
+      withdrawPeriodDuration,
+      withdrawPeriodNumber,
+      minBuyValue,
+      maxTokenAmountPerAddress,
+      exchangeRate,
+      referralRewardPercentage,
+      tokenAmountToSell,
+      {
+        from: owner,
+      }
+    );
+
     await crowdsale.authorizePaymentCurrencies(authorizedTokens);
-    await crowdsale.setSaleStart(saleStart);
+    // await crowdsale.setSaleStart(saleStart);
 
     await token.transfer(crowdsale.address, tokenTotalSupply, { from: owner });
     await usdc.transfer(user3, user3Bought, { from: user1 });
@@ -91,7 +106,7 @@ contract('Dolz Crowdsale Withdrawal', (accounts) => {
     await usdc.approve(crowdsale.address, MAX_INT256, { from: user5 });
     await usdc.approve(crowdsale.address, MAX_INT256, { from: user6 });
 
-    await time.increaseTo(saleStart);
+    await crowdsale.__increaseTimeFrom(time.duration.days(2));
 
     await crowdsale.buyToken(usdc.address, user1Bought, ZERO_ADDRESS, {
       from: user1,
@@ -126,7 +141,7 @@ contract('Dolz Crowdsale Withdrawal', (accounts) => {
 
   describe('At cliff (period 1)', () => {
     before(async () => {
-      await time.increaseTo(withdrawalStart);
+      await crowdsale.__increaseTimeFrom(time.duration.days(90));
     });
 
     it('should withdraw 10%', async () => {
@@ -157,6 +172,8 @@ contract('Dolz Crowdsale Withdrawal', (accounts) => {
     });
 
     it('should not withdraw twice', async () => {
+      await crowdsale.withdrawToken({ from: user1 });
+
       const userInitialBalance = await token.balanceOf(user1);
       const crowdsaleInitialBalance = await token.balanceOf(crowdsale.address);
 
@@ -182,7 +199,7 @@ contract('Dolz Crowdsale Withdrawal', (accounts) => {
 
   describe('At cliff + 4 weeks (period 2)', () => {
     before(async () => {
-      await time.increaseTo(addWeeks(withdrawalStart, 4));
+      await crowdsale.__increaseTimeFrom(time.duration.weeks(4));
     });
 
     it('should withdraw 10% more at 2nd withdraw', async () => {
@@ -256,7 +273,7 @@ contract('Dolz Crowdsale Withdrawal', (accounts) => {
 
   describe('At cliff + 8 weeks (period 3)', () => {
     before(async () => {
-      await time.increaseTo(addWeeks(withdrawalStart, 8));
+      await crowdsale.__increaseTimeFrom(time.duration.weeks(4));
     });
 
     it('should withdraw 10% more at 3rd withdraw', async () => {
@@ -339,7 +356,7 @@ contract('Dolz Crowdsale Withdrawal', (accounts) => {
 
   describe('At cliff + 36 weeks (period 10)', () => {
     before(async () => {
-      await time.increaseTo(addWeeks(withdrawalStart, 36));
+      await crowdsale.__increaseTimeFrom(time.duration.weeks(28));
     });
 
     it('should withdraw 100%', async () => {
@@ -396,7 +413,7 @@ contract('Dolz Crowdsale Withdrawal', (accounts) => {
 
   describe('At cliff + 40 weeks (after period 10)', () => {
     before(async () => {
-      await time.increaseTo(addWeeks(withdrawalStart, 40));
+      await crowdsale.__increaseTimeFrom(time.duration.weeks(4));
     });
 
     it('should withdraw 100%', async () => {
